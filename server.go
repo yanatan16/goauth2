@@ -25,6 +25,9 @@ type Store interface {
 	// http://tools.ietf.org/html/draft-ietf-oauth-v2-28#section-4.2.2
 	CreateImplicitAccessToken(r OAuthRequest) \
 		(token, token_type string, expiry int, err error)
+	// Verify an access token is valid
+	// Return true if valid, false otherwise.
+	VerifyAccessToken(token) bool
 }
 
 // ----------------------------------------------------------------------------

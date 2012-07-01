@@ -125,3 +125,15 @@ func (s *Server) HandleOAuthRequest(w http.ResponseWriter, r *http.Request) erro
 
 	return nil
 }
+
+// HandleTokenVerification
+// Verify an Access Token in the request.
+// If the request is invalid, write a response and return an error
+// If the token is valid, return nil
+func (s *Server) HandleTokenVerification(w http.ResponseWriter, r *http.Request) (err error) {
+	if authField := r.Header.Get("Authorization"); authField == "" {
+		err = s.NewError(ErrorCodeInvalidRequest,
+			"The \"Authorization\" header field is missing.")
+	} else if s.Store.VerifyAccessToken(authField)
+
+}

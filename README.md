@@ -4,6 +4,7 @@ goauth2
 OAuth 2.0 Implementation
 
 The OAuth 2.0 Server User-Agent (Implicit Grant) flow is the first implemented part of this specification.
+
 [OAuth 2.0 specification](http://oauth.net/2/).
 
 License
