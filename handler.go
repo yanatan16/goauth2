@@ -126,14 +126,83 @@ func (s *Server) HandleOAuthRequest(w http.ResponseWriter, r *http.Request) erro
 	return nil
 }
 
-// HandleTokenVerification
-// Verify an Access Token in the request.
-// If the request is invalid, write a response and return an error
+// HandleAccessTokenRequest [...]
+func (s *Server) HandleAccessTokenRequest(w http.ResponseWriter, r *http.Request) error {
+	// 1. Get all request values.
+	req := s.NewAccessTokenRequest(r)
+
+	// 2. Validate required parameters.
+	var err error
+	// Check for missing or wrong parameters
+	if req.GrantType == "" {
+		// Missing GrantType: error.
+		err = s.NewError(ErrorCodeInvalidRequest,
+			"The \"grant_type\" parameter is missing.")
+	} else if req.Code == "" {
+		// Missing Code: error.
+		err = s.NewError(ErrorCodeInvalidRequest,
+			"The \"code\" parameter is missing.")
+	} else if req.RedirectURI == "" {
+		// Missing RedirectURI: error.
+		err = s.NewError(ErrorCodeInvalidRequest,
+			"The \"redirect_uri\" parameter is missing.")
+	} else if req.GrantType != "authorization_code" {
+		// GrantType must be authorization_code
+		err = s.NewError(ErrorCodeUnsupportedGrantType,
+			fmt.Sprintf("The grant type %q is not supported.",
+			req.GrantType))
+	}
+
+	// 3. Get the response data to the URL.
+	// Authorization code response
+	var token, token_type string
+	var expiry int
+	res := make(map[string]string)
+	if err == nil {
+		token, token_type, expiry, err = s.Store.CreateAccessToken(req)
+	}
+	if err == nil {
+		// Success.
+		res["token"] = token
+		res["token_type"] = token_type
+		res["expires_in"] = expiry
+	} else {
+		e, ok := err.(ServerError)
+		if !ok {
+			e = s.NewError(ErrorCodeServerError, e.Error())
+		}
+		res["error"] = string(e.Code())
+		res["error_description"] = e.Description()
+		res["error_uri"] = e.URI()
+	}
+	
+	// 4. Write the response
+	setQueryPairs(w.Header,
+		"Content-Type", "application/json",
+		"Cache-Control", "no-store",
+		"Pragma", "no-cache",
+	)
+	encoder := json.NewEncoder(w)
+	encoder.Encode(res)
+	
+	return nil
+}
+
+// VerifyToken
+// Validate an Access Token in the request.
+// If the request is invalid, return an error
 // If the token is valid, return nil
-func (s *Server) HandleTokenVerification(w http.ResponseWriter, r *http.Request) (err error) {
+func (s *Server) VerifyToken(r *http.Request) (err error) {
 	if authField := r.Header.Get("Authorization"); authField == "" {
 		err = s.NewError(ErrorCodeInvalidRequest,
 			"The \"Authorization\" header field is missing.")
-	} else if s.Store.VerifyAccessToken(authField)
-
+		return err
+	} else if b := s.Store.ValidateAccessToken(authField); !b {
+		err = s.NewError(ErrorCodeInvalidToken,
+			"The Access Token is invalid.")
+		return err
+	} else {
+		// Success
+		return nil
+	}
 }

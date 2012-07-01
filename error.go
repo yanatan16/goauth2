@@ -1,4 +1,4 @@
-package server
+package goauth2
 
 type errorCode string
 
@@ -9,8 +9,10 @@ const (
 	ErrorCodeInvalidScope            errorCode = "invalid_scope"
 	ErrorCodeServerError             errorCode = "server_error"
 	ErrorCodeTemporarilyUnavailable  errorCode = "temporarily_unavailable"
-	ErrorCodeunauthorizedClient      errorCode = "unauthorized_client"
+	ErrorCodeUnauthorizedClient      errorCode = "unauthorized_client"
 	ErrorCodeUnsupportedResponseType errorCode = "unsupported_response_type"
+	ErrorCodeUnsupportedGrantType errorCode = "unsupported_grant_type"
+	ErrorCodeInvalidToken			 errorCode = "invalid_token"
 )
 
 // NewServerError [...]

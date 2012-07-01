@@ -25,9 +25,13 @@ type Store interface {
 	// http://tools.ietf.org/html/draft-ietf-oauth-v2-28#section-4.2.2
 	CreateImplicitAccessToken(r OAuthRequest) \
 		(token, token_type string, expiry int, err error)
-	// Verify an access token is valid
+	// Validate an authorization code is valid and generate access token
 	// Return true if valid, false otherwise.
-	VerifyAccessToken(token) bool
+	CreateAccessToken(r AccessTokenRequest) \
+		(token, token_type string, expiry int, err error)
+	// Validate an access token is valid
+	// Return true if valid, false otherwise.
+	ValidateAccessToken(authorization_field string) bool
 }
 
 // ----------------------------------------------------------------------------
@@ -68,7 +72,7 @@ type AccessTokenRequest struct {
 }
 
 // NewOAuthRequest [...]
-func (s *Server) NewOAuthRequest(r *http.Request) &OAuthRequest {
+func (s *Server) NewOAuthRequest(r *http.Request) *OAuthRequest {
 	v := r.URL.Query()
 	return &OAuthRequest{
 		ClientID:     v.Get("client_id"),
@@ -76,6 +80,16 @@ func (s *Server) NewOAuthRequest(r *http.Request) &OAuthRequest {
 		RedirectURI:  v.Get("redirect_uri"),
 		Scope:        v.Get("scope"),
 		State:        v.Get("state"),
+	}
+}
+
+// NewAccessTokenRequest [...]
+func (s *Server) NewAccessTokenRequest(r *http.Request) *AccessTokenRequestRequest {
+	v := r.URL.Query()
+	return &NewAccessTokenRequest{
+		GrantType:     v.Get("grant_type"),
+		Code: v.Get("code"),
+		RedirectURI:  v.Get("redirect_uri")
 	}
 }
 
