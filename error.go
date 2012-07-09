@@ -11,8 +11,9 @@ const (
 	ErrorCodeTemporarilyUnavailable  errorCode = "temporarily_unavailable"
 	ErrorCodeUnauthorizedClient      errorCode = "unauthorized_client"
 	ErrorCodeUnsupportedResponseType errorCode = "unsupported_response_type"
-	ErrorCodeUnsupportedGrantType errorCode = "unsupported_grant_type"
-	ErrorCodeInvalidToken			 errorCode = "invalid_token"
+	ErrorCodeUnsupportedGrantType    errorCode = "unsupported_grant_type"
+	ErrorCodeInvalidToken            errorCode = "invalid_token"
+	ErrorCodeBadRedirectURI          errorCode = "bad_redirect_uri" //FIXME
 )
 
 // NewServerError [...]

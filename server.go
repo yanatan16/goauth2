@@ -1,12 +1,9 @@
 package goauth2
 
 import (
-	"crypto/rand"
-	"encoding/base64"
 	"fmt"
 	"net/http"
 	"net/url"
-	"strings"
 )
 
 // ----------------------------------------------------------------------------
@@ -19,19 +16,17 @@ type Store interface {
 	// Create the authorization code for the Authorization Code Grant flow
 	// Return a ServerError if the authorization code cannot be requested
 	// http://tools.ietf.org/html/draft-ietf-oauth-v2-28#section-4.1.1
-	CreateAuthCode(r OAuthRequest) (string, error)
+	CreateAuthCode(r *OAuthRequest) (string, error)
 	// Create an access token for the Implicit Token Grant flow
 	// The token type, token and expiry should conform to the response guidelines
 	// http://tools.ietf.org/html/draft-ietf-oauth-v2-28#section-4.2.2
-	CreateImplicitAccessToken(r OAuthRequest) \
-		(token, token_type string, expiry int, err error)
+	CreateImplicitAccessToken(r *OAuthRequest) (token, token_type string, expiry int, err error)
 	// Validate an authorization code is valid and generate access token
 	// Return true if valid, false otherwise.
-	CreateAccessToken(r AccessTokenRequest) \
-		(token, token_type string, expiry int, err error)
+	CreateAccessToken(r *AccessTokenRequest) (token, token_type string, expiry int, err error)
 	// Validate an access token is valid
 	// Return true if valid, false otherwise.
-	ValidateAccessToken(authorization_field string) bool
+	ValidateAccessToken(authorization_field string) (bool, error)
 }
 
 // ----------------------------------------------------------------------------
@@ -43,8 +38,6 @@ type Client interface {
 	// The registered client type ("confidential" or "public") as decribed in:
 	// http://tools.ietf.org/html/draft-ietf-oauth-v2-25#section-2.1
 	Type() string
-	// The registered redirect_uri.
-	RedirectURI() string
 	// Validates that the provided redirect_uri is valid. It must return the
 	// same provided URI or an empty string if it is not valid.
 	// The specification is permissive and even allows multiple URIs, so the
@@ -84,12 +77,12 @@ func (s *Server) NewOAuthRequest(r *http.Request) *OAuthRequest {
 }
 
 // NewAccessTokenRequest [...]
-func (s *Server) NewAccessTokenRequest(r *http.Request) *AccessTokenRequestRequest {
+func (s *Server) NewAccessTokenRequest(r *http.Request) *AccessTokenRequest {
 	v := r.URL.Query()
-	return &NewAccessTokenRequest{
-		GrantType:     v.Get("grant_type"),
-		Code: v.Get("code"),
-		RedirectURI:  v.Get("redirect_uri")
+	return &AccessTokenRequest{
+		GrantType:   v.Get("grant_type"),
+		Code:        v.Get("code"),
+		RedirectURI: v.Get("redirect_uri"),
 	}
 }
 
@@ -104,7 +97,7 @@ type Server struct {
 // NewServer [...]
 func NewServer(store Store) *Server {
 	return &Server{
-		Store: store,
+		Store:     store,
 		errorURIs: make(map[errorCode]string),
 	}
 }
@@ -119,12 +112,26 @@ func (s *Server) NewError(code errorCode, description string) ServerError {
 	return NewServerError(code, description, s.errorURIs[code])
 }
 
+func (s *Server) InterpretError(err error) ServerError {
+	e, ok := err.(ServerError)
+	if !ok {
+		e = s.NewError(ErrorCodeServerError, e.Error())
+	} else if e.uri == "" {
+		e = s.NewError(e.code, e.description)
+	}
+	return e
+}
+
 // ----------------------------------------------------------------------------
+
+type Setter interface {
+	Set(a, b string)
+}
 
 // setQueryPairs sets non-empty values in a url.Values.
 //
 // This is just a convenience to avoid checking for emptiness for each value.
-func setQueryPairs(v url.Values, pairs ...string) {
+func setQueryPairs(v Setter, pairs ...string) {
 	for i := 0; i < len(pairs); i += 2 {
 		if pairs[i+1] != "" {
 			v.Set(pairs[i], pairs[i+1])
@@ -144,13 +151,4 @@ func validateRedirectURI(uri string) (u *url.URL, err error) {
 			"The redirection URI must not contain a fragment: %q.", uri)
 	}
 	return
-}
-
-// randomString generates authorization codes or tokens with a given strength.
-func randomString(strength int) string {
-	s := make([]byte, strength)
-	if _, err := rand.Read(s); err != nil {
-		return ""
-	}
-	return strings.TrimRight(base64.URLEncoding.EncodeToString(s), "=")
 }

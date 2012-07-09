@@ -1,6 +1,7 @@
 package goauth2
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -25,7 +26,7 @@ func (s *Server) HandleOAuthRequest(w http.ResponseWriter, r *http.Request) erro
 	} else if req.ResponseType != "code" || req.ResponseType != "token" {
 		err = s.NewError(ErrorCodeUnsupportedResponseType,
 			fmt.Sprintf("The response type %q is not supported.",
-			req.ResponseType))
+				req.ResponseType))
 	}
 
 	// 3. Load client and validate the redirection URI.
@@ -80,10 +81,7 @@ func (s *Server) HandleOAuthRequest(w http.ResponseWriter, r *http.Request) erro
 			// Success.
 			query.Set("code", code)
 		} else {
-			e, ok := err.(ServerError)
-			if !ok {
-				e = s.NewError(ErrorCodeServerError, e.Error())
-			}
+			e := s.InterpretError(err)
 			setQueryPairs(query,
 				"error", string(e.Code()),
 				"error_description", e.Description(),
@@ -93,25 +91,21 @@ func (s *Server) HandleOAuthRequest(w http.ResponseWriter, r *http.Request) erro
 		redirectURI.RawQuery = query.Encode()
 		http.Redirect(w, r, redirectURI.String(), 302)
 
-	} else if req.Responsetype == "token" {
+	} else if req.ResponseType == "token" {
 		// Implicit Grant Access Token response
 		setQueryPairs(query, "state", req.State)
-		var token string
 		if err == nil {
-			token, token_type, expiry, err = s.Store.CreateAccessToken(req)
-		}
-		if err == nil {
-			// Success.
-			setQueryPairs(query,
-				"token", token,
-				"token_type", token_type,
-				"expires_in", fmt.Sprintf("%d", expiry)
-			)
-		} else {
-			e, ok := err.(ServerError)
-			if !ok {
-				e = s.NewError(ErrorCodeServerError, e.Error())
+			token, token_type, expiry, err := s.Store.CreateImplicitAccessToken(req)
+			if err == nil {
+				// Success.
+				setQueryPairs(query,
+					"token", token,
+					"token_type", token_type,
+					"expires_in", fmt.Sprintf("%d", expiry),
+				)
 			}
+		} else {
+			e := s.InterpretError(err)
 			setQueryPairs(query,
 				"error", string(e.Code()),
 				"error_description", e.Description(),
@@ -150,7 +144,7 @@ func (s *Server) HandleAccessTokenRequest(w http.ResponseWriter, r *http.Request
 		// GrantType must be authorization_code
 		err = s.NewError(ErrorCodeUnsupportedGrantType,
 			fmt.Sprintf("The grant type %q is not supported.",
-			req.GrantType))
+				req.GrantType))
 	}
 
 	// 3. Get the response data to the URL.
@@ -165,26 +159,23 @@ func (s *Server) HandleAccessTokenRequest(w http.ResponseWriter, r *http.Request
 		// Success.
 		res["token"] = token
 		res["token_type"] = token_type
-		res["expires_in"] = expiry
+		res["expires_in"] = fmt.Sprintf("%d", expiry)
 	} else {
-		e, ok := err.(ServerError)
-		if !ok {
-			e = s.NewError(ErrorCodeServerError, e.Error())
-		}
+		e := s.InterpretError(err)
 		res["error"] = string(e.Code())
 		res["error_description"] = e.Description()
 		res["error_uri"] = e.URI()
 	}
-	
+
 	// 4. Write the response
-	setQueryPairs(w.Header,
+	setQueryPairs(w.Header(),
 		"Content-Type", "application/json",
 		"Cache-Control", "no-store",
 		"Pragma", "no-cache",
 	)
 	encoder := json.NewEncoder(w)
 	encoder.Encode(res)
-	
+
 	return nil
 }
 
@@ -197,12 +188,14 @@ func (s *Server) VerifyToken(r *http.Request) (err error) {
 		err = s.NewError(ErrorCodeInvalidRequest,
 			"The \"Authorization\" header field is missing.")
 		return err
-	} else if b := s.Store.ValidateAccessToken(authField); !b {
+	} else if b, e2 := s.Store.ValidateAccessToken(authField); err != nil {
+		return s.InterpretError(e2)
+	} else if !b {
 		err = s.NewError(ErrorCodeInvalidToken,
 			"The Access Token is invalid.")
 		return err
-	} else {
-		// Success
-		return nil
 	}
+
+	// Success
+	return nil
 }
