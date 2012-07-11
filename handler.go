@@ -9,6 +9,18 @@ import (
 
 // ----------------------------------------------------------------------------
 
+// MasterHandler
+// Differentiate between an OAuth request (implicit, auth codes) and an
+// Access Token request
+func (s *Server) MasterHandler(w http.ResponseWriter, r *http.Request) error {
+	v := r.URL.Query()
+	response_type := v.Get("response_type")
+	if response_type != "" {
+		return s.HandleOAuthRequest(w, r)
+	}
+	return s.HandleAccessTokenRequest(w, r)
+}
+
 // HandleOAuthRequest [...]
 func (s *Server) HandleOAuthRequest(w http.ResponseWriter, r *http.Request) error {
 	// 1. Get all request values.
