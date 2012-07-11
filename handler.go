@@ -3,6 +3,7 @@ package goauth2
 import (
 	"encoding/json"
 	"fmt"
+   "log"
 	"net/http"
 	"net/url"
 )
@@ -12,13 +13,34 @@ import (
 // MasterHandler
 // Differentiate between an OAuth request (implicit, auth codes) and an
 // Access Token request
-func (s *Server) MasterHandler(w http.ResponseWriter, r *http.Request) error {
+func (s *Server) MasterHandler(w http.ResponseWriter, r *http.Request) {
 	v := r.URL.Query()
 	response_type := v.Get("response_type")
+   var err error
 	if response_type != "" {
-		return s.HandleOAuthRequest(w, r)
+		err = s.HandleOAuthRequest(w, r)
+	} else {
+      err = s.HandleAccessTokenRequest(w, r)
+   }
+
+   // Return something if there was an error
+   if err != nil {
+		// Encode error as json
+      e := s.InterpretError(err)
+	   res := make(map[string]string)
+	
+		res["error"] = string(e.Code())
+		res["error_description"] = e.Description()
+		res["error_uri"] = e.URI()
+
+	   setQueryPairs(w.Header(),
+		      "Content-Type", "application/json",
+   		   "Cache-Control", "no-store",
+	   	   "Pragma", "no-cache",
+	      )
+   	encoder := json.NewEncoder(w)
+	   encoder.Encode(res)
 	}
-	return s.HandleAccessTokenRequest(w, r)
 }
 
 // HandleOAuthRequest [...]
@@ -210,4 +232,22 @@ func (s *Server) VerifyToken(r *http.Request) (err error) {
 
 	// Success
 	return nil
+}
+
+// Decorate a http.HandlerFunc with an OAuth Access Token Verification
+func (server *Server) TokenVerifier(handler http.HandlerFunc) http.HandlerFunc {
+	return func(response http.ResponseWriter, request *http.Request) {
+		if err := server.VerifyToken(request); err != nil {
+			// Write the error
+			response.WriteHeader(http.StatusUnauthorized)
+			log.Println("OAuth Handler: Unauthorized access!", err)
+
+			_, err = response.Write([]byte(err.Error()))
+			if err != nil {
+				log.Println("OAuth Handler: Error writing response!", err)
+			}
+		} else {
+			handler(response, request)
+		}
+	}
 }
