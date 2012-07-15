@@ -1,7 +1,5 @@
 package goauth2
 
-import ()
-
 // Authorization Cache
 // This is an interface that registers and looks up authorization codes
 // and access tokens with corresponding information.
