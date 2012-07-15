@@ -10,9 +10,6 @@ import (
 
 // Store [...]
 type Store interface {
-	// A Client is always returned -- it is nil only if ClientID is invalid.
-	// Use the error to indicate denied or unauthorized access.
-	GetClient(clientID string) (Client, error)
 	// Create the authorization code for the Authorization Code Grant flow
 	// Return a ServerError if the authorization code cannot be requested
 	// http://tools.ietf.org/html/draft-ietf-oauth-v2-28#section-4.1.1
@@ -31,30 +28,17 @@ type Store interface {
 
 // ----------------------------------------------------------------------------
 
-// Client is a client registered with the authorization server.
-type Client interface {
-	// Unique identifier for the client.
-	ID() string
-	// The registered client type ("confidential" or "public") as decribed in:
-	// http://tools.ietf.org/html/draft-ietf-oauth-v2-25#section-2.1
-	Type() string
-	// Validates that the provided redirect_uri is valid. It must return the
-	// same provided URI or an empty string if it is not valid.
-	// The specification is permissive and even allows multiple URIs, so the
-	// validation rules are up to the server implementation.
-	// Ref: http://tools.ietf.org/html/draft-ietf-oauth-v2-25#section-3.1.2.2
-	ValidateRedirectURI(string) string
-}
-
-// ----------------------------------------------------------------------------
-
 // OAuthRequest [...]
 type OAuthRequest struct {
-	ClientID     string
-	ResponseType string
-	RedirectURI  string
-	Scope        string
-	State        string
+	ClientID        string
+	ResponseType    string
+	redirectURI_raw string
+	RedirectURI     *url.URL
+	Scope           string
+	State           string
+
+	// For accessing store functions, such as creating auth codes
+	Store Store
 }
 
 // AccessTokenRequest [...]
@@ -64,15 +48,24 @@ type AccessTokenRequest struct {
 	RedirectURI string
 }
 
+// AuthHandler
+// AuthHandlers perform authentication with the resource owner
+// It is important they follow OAuth 2.0 specification. For ease of use,
+// A reference to the Store is passed in the OAuthRequest.
+// Also, the functions AuthCodeRedirect and ImplicitRedirect will
+// allow a handler to redirect back to the client in a spec-certified way.
+type AuthHandler func(w http.ResponseWriter, r *http.Request, oar *OAuthRequest)
+
 // NewOAuthRequest [...]
 func (s *Server) NewOAuthRequest(r *http.Request) *OAuthRequest {
 	v := r.URL.Query()
 	return &OAuthRequest{
-		ClientID:     v.Get("client_id"),
-		ResponseType: v.Get("response_type"),
-		RedirectURI:  v.Get("redirect_uri"),
-		Scope:        v.Get("scope"),
-		State:        v.Get("state"),
+		ClientID:        v.Get("client_id"),
+		ResponseType:    v.Get("response_type"),
+		redirectURI_raw: v.Get("redirect_uri"),
+		Scope:           v.Get("scope"),
+		State:           v.Get("state"),
+		Store:           s.Store,
 	}
 }
 
@@ -90,15 +83,25 @@ func (s *Server) NewAccessTokenRequest(r *http.Request) *AccessTokenRequest {
 
 // Server [...]
 type Server struct {
-	Store     Store
-	errorURIs map[errorCode]string
+	Store                      Store
+	ImplicitAuth, AuthCodeAuth AuthHandler
+	errorURIs                  map[errorCode]string
 }
 
 // NewServer [...]
-func NewServer(store Store) *Server {
+// store is a goauth2 Store which can be user implemented or
+//	use the one that has users implement AuthCache and ClientStore
+// authCodeHandler is a AuthHandler which will handle authentication
+// 	of the resource owner during the auth code grant
+// implicitHandler is a AuthHandler which will handle authentication
+// 	of the resource owner during implicit grant
+// Note: the handlers must follow the proper redirect patterns
+func NewServer(store Store, authCodeHandler, implicitHandler AuthHandler) *Server {
 	return &Server{
-		Store:     store,
-		errorURIs: make(map[errorCode]string),
+		Store:        store,
+		ImplicitAuth: implicitHandler,
+		AuthCodeAuth: authCodeHandler,
+		errorURIs:    make(map[errorCode]string),
 	}
 }
 

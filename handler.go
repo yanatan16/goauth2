@@ -3,9 +3,8 @@ package goauth2
 import (
 	"encoding/json"
 	"fmt"
-   "log"
+	"log"
 	"net/http"
-	"net/url"
 )
 
 // ----------------------------------------------------------------------------
@@ -16,30 +15,30 @@ import (
 func (s *Server) MasterHandler(w http.ResponseWriter, r *http.Request) {
 	v := r.URL.Query()
 	response_type := v.Get("response_type")
-   var err error
+	var err error
 	if response_type != "" {
 		err = s.HandleOAuthRequest(w, r)
 	} else {
-      err = s.HandleAccessTokenRequest(w, r)
-   }
+		err = s.HandleAccessTokenRequest(w, r)
+	}
 
-   // Return something if there was an error
-   if err != nil {
+	// Return something if there was an error
+	if err != nil {
 		// Encode error as json
-      e := s.InterpretError(err)
-	   res := make(map[string]string)
-	
+		e := s.InterpretError(err)
+		res := make(map[string]string)
+
 		res["error"] = string(e.Code())
 		res["error_description"] = e.Description()
 		res["error_uri"] = e.URI()
 
-	   setQueryPairs(w.Header(),
-		      "Content-Type", "application/json",
-   		   "Cache-Control", "no-store",
-	   	   "Pragma", "no-cache",
-	      )
-   	encoder := json.NewEncoder(w)
-	   encoder.Encode(res)
+		setQueryPairs(w.Header(),
+			"Content-Type", "application/json",
+			"Cache-Control", "no-store",
+			"Pragma", "no-cache",
+		)
+		encoder := json.NewEncoder(w)
+		encoder.Encode(res)
 	}
 }
 
@@ -64,91 +63,45 @@ func (s *Server) HandleOAuthRequest(w http.ResponseWriter, r *http.Request) erro
 	}
 
 	// 3. Load client and validate the redirection URI.
-	var redirectURI *url.URL
-	if req.ClientID != "" {
-		client, clientErr := s.Store.GetClient(req.ClientID)
-		if client == nil {
-			// Invalid ClientID: no redirect.
-			if err == nil {
-				err = s.NewError(ErrorCodeInvalidRequest,
-					"The \"client_id\" parameter is invalid.")
-			}
+	if err == nil {
+		if u, uErr := validateRedirectURI(req.redirectURI_raw); uErr == nil {
+			req.RedirectURI = u
 		} else {
-			if u, uErr := validateRedirectURI(
-				client.ValidateRedirectURI(req.RedirectURI)); uErr == nil {
-				redirectURI = u
+			// Missing, mismatching or invalid URI: no redirect.
+			if req.redirectURI_raw == "" {
+				err = s.NewError(ErrorCodeInvalidRequest,
+					"Missing redirection URI.")
 			} else {
-				// Missing, mismatching or invalid URI: no redirect.
-				if err == nil {
-					if req.RedirectURI == "" {
-						err = s.NewError(ErrorCodeInvalidRequest,
-							"Missing redirection URI.")
-					} else {
-						err = s.NewError(ErrorCodeInvalidRequest, uErr.Error())
-					}
-				}
-			}
-			if clientErr != nil && err == nil {
-				// Client was not authorized.
-				err = clientErr
+				err = s.NewError(ErrorCodeInvalidRequest, uErr.Error())
 			}
 		}
 	}
 
 	// 4. If no valid redirection URI was set, abort.
-	if redirectURI == nil {
+	if req.RedirectURI == nil {
 		// An error occurred because client_id or redirect_uri are invalid:
 		// the caller must display an error page and don't redirect.
 		return err
 	}
 
-	// 5. Add the response data to the URL and redirect.
-	query := redirectURI.Query()
-	if req.ResponseType == "code" {
-		// Authorization code response
-		setQueryPairs(query, "state", req.State)
-		var code string
-		if err == nil {
-			code, err = s.Store.CreateAuthCode(req)
-		}
-		if err == nil {
-			// Success.
-			query.Set("code", code)
+	// 5.1 If there was an error, redirect now with an error
+	if err != nil {
+		if req.ResponseType == "code" {
+			req.AuthCodeRedirect(w, r, err)
 		} else {
-			e := s.InterpretError(err)
-			setQueryPairs(query,
-				"error", string(e.Code()),
-				"error_description", e.Description(),
-				"error_uri", e.URI(),
-			)
+			req.ImplicitRedirect(w, r, err)
 		}
-		redirectURI.RawQuery = query.Encode()
-		http.Redirect(w, r, redirectURI.String(), 302)
+	}
 
-	} else if req.ResponseType == "token" {
-		// Implicit Grant Access Token response
-		setQueryPairs(query, "state", req.State)
-		if err == nil {
-			token, token_type, expiry, err := s.Store.CreateImplicitAccessToken(req)
-			if err == nil {
-				// Success.
-				setQueryPairs(query,
-					"token", token,
-					"token_type", token_type,
-					"expires_in", fmt.Sprintf("%d", expiry),
-				)
-			}
-		} else {
-			e := s.InterpretError(err)
-			setQueryPairs(query,
-				"error", string(e.Code()),
-				"error_description", e.Description(),
-				"error_uri", e.URI(),
-			)
-		}
-		// Encode as fragment
-		redirectURI.Fragment = query.Encode()
-		http.Redirect(w, r, redirectURI.String(), 302)
+	// 5.2 No error: Now we allow the handlers to finish the job.
+	if req.ResponseType == "code" {
+		// Pass off the request to the AuthCode Handler for
+		// Authentication
+		s.AuthCodeAuth(w, r, req)
+	} else {
+		// Pass off the request to the Implicit Handler for
+		// Authentication
+		s.ImplicitAuth(w, r, req)
 	}
 
 	return nil
@@ -234,9 +187,9 @@ func (s *Server) VerifyToken(r *http.Request) (err error) {
 	return nil
 }
 
-// Decorate a http.HandlerFunc with an OAuth Access Token Verification
-func (server *Server) TokenVerifier(handler http.HandlerFunc) http.HandlerFunc {
-	return func(response http.ResponseWriter, request *http.Request) {
+// Decorate a http.Handler with an OAuth Access Token Verification
+func (server *Server) TokenVerifier(handler http.Handler) http.Handler {
+	return http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
 		if err := server.VerifyToken(request); err != nil {
 			// Write the error
 			response.WriteHeader(http.StatusUnauthorized)
@@ -247,7 +200,7 @@ func (server *Server) TokenVerifier(handler http.HandlerFunc) http.HandlerFunc {
 				log.Println("OAuth Handler: Error writing response!", err)
 			}
 		} else {
-			handler(response, request)
+			handler.ServeHTTP(response, request)
 		}
-	}
+	})
 }

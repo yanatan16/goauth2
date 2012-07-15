@@ -29,12 +29,6 @@ type AuthCache interface {
 	LookupAccessToken(token string) (bool, error)
 }
 
-// ClientStore is an interface for validating whether a client is valid
-type ClientStore interface {
-	// Check whether a clientID is valid
-	ValidClient(clientID string) (bool, error)
-}
-
 // ----------------------------------------------------------------------------
 
 // An implementation of the goauth2 store that abstracts away the
@@ -44,32 +38,15 @@ type ClientStore interface {
 //	3: Looking up clients into the ClientStore interface
 // Note: Currently only supports public clients with bearer tokens
 type StoreImpl struct {
-	Clients ClientStore
 	Backend AuthCache
 }
 
 // ----------------------------------------------------------------------------
 
-func NewStore(clients ClientStore, backend AuthCache) *StoreImpl {
+func NewStore(backend AuthCache) *StoreImpl {
 	return &StoreImpl{
-		clients,
 		backend,
 	}
-}
-
-// GetClient
-// A Client is always returned -- it is nil only if ClientID is invalid.
-// Use the error to indicate denied or unauthorized access.
-// Note: Currently only provides public clients
-func (s *StoreImpl) GetClient(clientID string) (Client, error) {
-	if valid, err := s.Clients.ValidClient(clientID); err != nil {
-		return nil, err
-	} else if valid {
-		return NewClient(clientID, "public"), nil
-	}
-	err := NewServerError(ErrorCodeUnauthorizedClient,
-		"ClientID not valid.", "")
-	return nil, err
 }
 
 // Create the authorization code for the Authorization Code Grant flow
@@ -78,7 +55,7 @@ func (s *StoreImpl) GetClient(clientID string) (Client, error) {
 func (s *StoreImpl) CreateAuthCode(r *OAuthRequest) (string, error) {
 	code := <-RandStr
 	if err := s.Backend.RegisterAuthCode(r.ClientID,
-		r.Scope, r.RedirectURI, code); err != nil {
+		r.Scope, r.redirectURI_raw, code); err != nil {
 		return "", err
 	}
 
