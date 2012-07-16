@@ -16,7 +16,7 @@ type AuthCache interface {
 	// Scope is the requested access scope
 	// Token is a generated random string to register with the request
 	// Returns the token type, expiration time (in seconds), and possibly an error
-	RegisterAccessToken(clientID, scope, token string) (ttype string, expiry int, err error)
+	RegisterAccessToken(clientID, scope, token string) (ttype string, expiry int64, err error)
 
 	// Lookup access token
 	// Code is the code passed from the user
@@ -65,8 +65,7 @@ func (s *StoreImpl) CreateAuthCode(r *OAuthRequest) (string, error) {
 // Create an access token for the Implicit Token Gr`ant flow
 // The token type, token and expiry should conform to the response guidelines
 // http://tools.ietf.org/html/draft-ietf-oauth-v2-28#section-4.2.2
-func (s *StoreImpl) CreateImplicitAccessToken(r *OAuthRequest) (token, token_type string, expiry int, err error) {
-
+func (s *StoreImpl) CreateImplicitAccessToken(r *OAuthRequest) (token, token_type string, expiry int64, err error) {
 	token = <-RandStr
 	ttype, exp, err := s.Backend.RegisterAccessToken(r.ClientID, r.Scope, token)
 
@@ -78,7 +77,7 @@ func (s *StoreImpl) CreateImplicitAccessToken(r *OAuthRequest) (token, token_typ
 
 // Validate an authorization code is valid and generate access token
 // Return true if valid, false otherwise.
-func (s *StoreImpl) CreateAccessToken(r *AccessTokenRequest) (token, token_type string, expiry int, err error) {
+func (s *StoreImpl) CreateAccessToken(r *AccessTokenRequest) (token, token_type string, expiry int64, err error) {
 
 	cid, scope, uri, err := s.Backend.LookupAuthCode(r.Code)
 	if err != nil {

@@ -9,10 +9,18 @@ import (
 
 // ----------------------------------------------------------------------------
 
+
 // MasterHandler
 // Differentiate between an OAuth request (implicit, auth codes) and an
 // Access Token request
-func (s *Server) MasterHandler(w http.ResponseWriter, r *http.Request) {
+func (s *Server) MasterHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		s.masterHandlerImpl(w, r)	
+	})
+}
+
+// Implementation of MasterHandler
+func (s *Server) masterHandlerImpl(w http.ResponseWriter, r *http.Request) {
 	v := r.URL.Query()
 	response_type := v.Get("response_type")
 	var err error
@@ -56,7 +64,7 @@ func (s *Server) HandleOAuthRequest(w http.ResponseWriter, r *http.Request) erro
 	} else if req.ResponseType == "" {
 		err = s.NewError(ErrorCodeInvalidRequest,
 			"The \"response_type\" parameter is missing.")
-	} else if req.ResponseType != "code" || req.ResponseType != "token" {
+	} else if !(req.ResponseType == "code" || req.ResponseType == "token") {
 		err = s.NewError(ErrorCodeUnsupportedResponseType,
 			fmt.Sprintf("The response type %q is not supported.",
 				req.ResponseType))
@@ -97,11 +105,11 @@ func (s *Server) HandleOAuthRequest(w http.ResponseWriter, r *http.Request) erro
 	if req.ResponseType == "code" {
 		// Pass off the request to the AuthCode Handler for
 		// Authentication
-		s.AuthCodeAuth(w, r, req)
+		s.Auth.Authorize(w, r, req)
 	} else {
 		// Pass off the request to the Implicit Handler for
 		// Authentication
-		s.ImplicitAuth(w, r, req)
+		s.Auth.AuthorizeImplicit(w, r, req)
 	}
 
 	return nil
@@ -137,7 +145,7 @@ func (s *Server) HandleAccessTokenRequest(w http.ResponseWriter, r *http.Request
 	// 3. Get the response data to the URL.
 	// Authorization code response
 	var token, token_type string
-	var expiry int
+	var expiry int64
 	res := make(map[string]string)
 	if err == nil {
 		token, token_type, expiry, err = s.Store.CreateAccessToken(req)

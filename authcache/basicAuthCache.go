@@ -7,8 +7,8 @@ import (
 )
 
 const (
-	CodeExpiry  int = 100
-	TokenExpiry int = 3600
+	CodeExpiry  int64 = 100
+	TokenExpiry int64 = 3600
 )
 
 type CacheEntry struct {
@@ -53,7 +53,7 @@ func (ac *BasicAuthCache) RegisterAuthCode(clientID, scope, redirect_uri, code s
 // Scope is the requested access scope
 // Token is a generated random string to register with the request
 // Returns the token type, expiration time (in seconds), and possibly an error
-func (ac *BasicAuthCache) RegisterAccessToken(clientID, scope, token string) (ttype string, expiry int, err error) {
+func (ac *BasicAuthCache) RegisterAccessToken(clientID, scope, token string) (ttype string, expiry int64, err error) {
 	entry := &CacheEntry{
 		ClientID: clientID,
 		Scope:    scope,
@@ -87,7 +87,7 @@ func (ac *BasicAuthCache) LookupAccessToken(token string) (bool, error) {
 }
 
 // DelayedDelete will way secs seconds before deleting key from map m
-func DelayedDelete(m map[string]*CacheEntry, key string, secs int) {
+func DelayedDelete(m map[string]*CacheEntry, key string, secs int64) {
 	<-time.After(time.Duration(secs) * time.Second)
 	delete(m, key)
 }
