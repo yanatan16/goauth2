@@ -24,6 +24,16 @@ func NewRedisAuthCache(addr string, dbnum int, pass string) *RedisAuthCache {
 	}
 }
 
+// Create a redis-based implementation of goauth2.AuthCache with 
+// an already existing connection to Redis
+func NewRedisAuthCacheWithClient(client  *redis.Client) *RedisAuthCache {
+	return &RedisAuthCache{
+		db:          client,
+		CodeExpiry:  120,
+		TokenExpiry: 3600,
+	}
+}
+
 func codeKey(code string) string {
 	return fmt.Sprintf("code:%s", code)
 }

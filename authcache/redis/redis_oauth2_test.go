@@ -1,7 +1,9 @@
 package redis
 
 import (
-	. "./../../"
+	. "./../../tests"
+	"github.com/yanatan16/goauth2"
+	"github.com/yanatan16/goauth2/authhandler"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -27,10 +29,10 @@ func ExampleRunGoauth2ServerWithRedis(port int) {
 	ac := NewRedisAuthCache(redis_addr, redis_dbnum, redis_pass)
 
 	// Create your implementation of AuthHandler
-	auth := TestAuthImpl(true)
+	auth := authhandler.NewWhiteList("client1")
 
 	// Create the store and the server
-	server := NewServer(ac, auth)
+	server := goauth2.NewServer(ac, auth)
 
 	// Create the Serve Mux for http serving
 	sm := http.NewServeMux()
