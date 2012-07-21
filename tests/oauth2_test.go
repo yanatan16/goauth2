@@ -1,4 +1,4 @@
-package goauth2
+package tests
 
 import (
 	"fmt"
@@ -17,7 +17,7 @@ var (
 
 func init() {
 	go ExampleRunGoauth2Server(auth_port)
-	InitTests("127.0.0.1", 
+	InitTests("127.0.0.1",
 		fmt.Sprintf("http://%s:%d/authorize", "127.0.0.1", auth_port))
 
 	api_url = fmt.Sprintf("http://%s:%d/api", "127.0.0.1", auth_port)
@@ -59,31 +59,31 @@ func TestImplicitGrant(t *testing.T) {
 
 // Test the authorization code grant flow of OAuth 2.0
 func TestAuthCodeGrant(t *testing.T) {
-	DoTestAuthCodeGrant(t, ApiCheck(apiUseTest))	
+	DoTestAuthCodeGrant(t, ApiCheck(apiUseTest))
 }
 
 // Use a bad token to try and access the api
 func TestBadTokenUse(t *testing.T) {
-   token := "avpneqp984hrlkfzd"
+	token := "avpneqp984hrlkfzd"
 
-   req, err := http.NewRequest("GET", api_url, nil)
-   if err != nil {
-      t.Fatal("Error creating API Use Request", err)
-   }
+	req, err := http.NewRequest("GET", api_url, nil)
+	if err != nil {
+		t.Fatal("Error creating API Use Request", err)
+	}
 
-   req.Header.Add("Authorization", token)
+	req.Header.Add("Authorization", token)
 
-   client := &http.Client{}
+	client := &http.Client{}
 
-   resp, err := client.Do(req)
-   if err != nil {
-      t.Fatal("Error making GET request for API with authorization", err)
-   }
-   defer resp.Body.Close()
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatal("Error making GET request for API with authorization", err)
+	}
+	defer resp.Body.Close()
 
-   if resp.StatusCode != 401 {
-      t.Fatal("API Response Status code is not unauthorized! ", resp.Status)
-   }
+	if resp.StatusCode != 401 {
+		t.Fatal("API Response Status code is not unauthorized! ", resp.Status)
+	}
 }
 
 // Test what happend when an auth code request fails
@@ -94,4 +94,3 @@ func TestFailedAuthCodeRequest(t *testing.T) {
 func TestFailedImplicitGrant(t *testing.T) {
 	DoTestFailedImplicitGrant(t)
 }
-

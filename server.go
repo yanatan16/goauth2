@@ -89,9 +89,9 @@ func (s *Server) NewAccessTokenRequest(r *http.Request) *AccessTokenRequest {
 
 // Server [...]
 type Server struct {
-	Store                      Store
-	Auth AuthHandler
-	errorURIs                  map[errorCode]string
+	Store     Store
+	Auth      AuthHandler
+	errorURIs map[errorCode]string
 }
 
 // NewServer 
@@ -100,9 +100,9 @@ type Server struct {
 func NewServer(cache AuthCache, auth AuthHandler) *Server {
 	store := NewStore(cache)
 	return &Server{
-		Store:        store,
-		Auth: auth,
-		errorURIs:    make(map[errorCode]string),
+		Store:     store,
+		Auth:      auth,
+		errorURIs: make(map[errorCode]string),
 	}
 }
 

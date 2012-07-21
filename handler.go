@@ -9,13 +9,12 @@ import (
 
 // ----------------------------------------------------------------------------
 
-
 // MasterHandler
 // Differentiate between an OAuth request (implicit, auth codes) and an
 // Access Token request
 func (s *Server) MasterHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		s.masterHandlerImpl(w, r)	
+		s.masterHandlerImpl(w, r)
 	})
 }
 
