@@ -58,9 +58,11 @@ func (req *OAuthRequest) ImplicitRedirect(w http.ResponseWriter, r *http.Request
 		if err == nil {
 			setQueryPairs(query,
 				"token", token,
-				"token_type", token_type,
-				"expires_in", fmt.Sprintf("%d", expiry),
+				"token_type", token_type
 			)
+			if expiry {
+				setQueryPairs(query, "expires_in", fmt.Sprintf("%d", expiry))
+			}
 		}
 	}
 	if err != nil {

@@ -15,10 +15,15 @@ type Store interface {
 	// http://tools.ietf.org/html/draft-ietf-oauth-v2-28#section-4.1.1
 	CreateAuthCode(r *OAuthRequest) (string, error)
 	// Create an access token for the Implicit Token Grant flow
-	// The token type, token and expiry should conform to the response guidelines
+	// The token type, token and expiry should conform to the response guidelines/
+	// If expiry is 0, then it will be considered to not have an expiration time, although
+	// out-of-band events may make it expire.
 	// http://tools.ietf.org/html/draft-ietf-oauth-v2-28#section-4.2.2
 	CreateImplicitAccessToken(r *OAuthRequest) (token, token_type string, expiry int64, err error)
 	// Validate an authorization code is valid and generate access token
+	// The token type, token and expiry should conform to the response guidelines/
+	// If expiry is 0, then it will be considered to not have an expiration time, although
+	// out-of-band events may make it expire.
 	// Return true if valid, false otherwise.
 	CreateAccessToken(r *AccessTokenRequest) (token, token_type string, expiry int64, err error)
 	// Validate an access token is valid

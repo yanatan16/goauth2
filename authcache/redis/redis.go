@@ -16,11 +16,12 @@ type RedisAuthCache struct {
 }
 
 // Create a redis-based implementation of goauth2.AuthCache
+// By default, it will not have token expiration times
 func NewRedisAuthCache(addr string, dbnum int, pass string) *RedisAuthCache {
 	return &RedisAuthCache{
 		db:          redis.New(addr, dbnum, pass),
 		CodeExpiry:  120,
-		TokenExpiry: 3600,
+		TokenExpiry: 0,
 	}
 }
 

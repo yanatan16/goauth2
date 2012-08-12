@@ -153,7 +153,9 @@ func (s *Server) HandleAccessTokenRequest(w http.ResponseWriter, r *http.Request
 		// Success.
 		res["token"] = token
 		res["token_type"] = token_type
-		res["expires_in"] = fmt.Sprintf("%d", expiry)
+		if expiry { // Don't add it if expiry = 0
+			res["expires_in"] = fmt.Sprintf("%d", expiry)
+		}
 	} else {
 		e := s.InterpretError(err)
 		res["error"] = string(e.Code())

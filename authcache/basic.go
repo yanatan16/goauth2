@@ -8,7 +8,8 @@ import (
 
 const (
 	CodeExpiry  int64 = 100
-	TokenExpiry int64 = 3600
+	// No expiration of Tokens
+	TokenExpiry int64 = 0 
 )
 
 type CacheEntry struct {
@@ -17,6 +18,7 @@ type CacheEntry struct {
 
 // This is a struct that implements the AuthCache interface
 // Note: It only handles bearer tokens
+// This auth cache does not use expiration times
 type BasicAuthCache struct {
 	AuthCodes    map[string]*CacheEntry
 	AccessTokens map[string]*CacheEntry
