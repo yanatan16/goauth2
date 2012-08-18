@@ -45,7 +45,9 @@ func (ac *BasicAuthCache) RegisterAuthCode(clientID, scope, redirect_uri, code s
 	}
 	ac.AuthCodes[code] = entry
 
-	go DelayedDelete(ac.AuthCodes, code, CodeExpiry)
+	if CodeExpiry > 0 {
+		go DelayedDelete(ac.AuthCodes, code, CodeExpiry)
+	}
 
 	return nil
 }
@@ -62,7 +64,9 @@ func (ac *BasicAuthCache) RegisterAccessToken(clientID, scope, token string) (tt
 	}
 	ac.AccessTokens[token] = entry
 
-	go DelayedDelete(ac.AccessTokens, token, TokenExpiry)
+	if TokenExpiry > 0 {
+		go DelayedDelete(ac.AccessTokens, token, TokenExpiry)
+	}
 
 	return "bearer", TokenExpiry, nil
 }

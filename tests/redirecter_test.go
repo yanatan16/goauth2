@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	auth_port_2     int = 15699
-	redirecter_port int = 15696
+	auth_port_2     int = 16002
+	redirecter_port int = 16003
 )
 
 var (

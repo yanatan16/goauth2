@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	auth_port int = 15697
+	auth_port int = 16001
 )
 
 var (
@@ -43,7 +43,7 @@ func apiUseTest(t *testing.T, token string) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		t.Fatal("API Response Status code is bad", resp.Status)
+		t.Fatal("API Response Status code is bad", resp.Status, api_url)
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)

@@ -124,8 +124,11 @@ func DoTestImplicitGrant(t *testing.T, checkApi ApiCheck) (token string) {
 		if ttype := frag.Get("token_type"); !(ttype == "bearer" || ttype == "mac") {
 			t.Fatalf("Request fragment contained bad token_type: %s / %s", ttype, fragstr)
 		}
-		if _, err := strconv.ParseInt(frag.Get("expires_in"), 10, 64); err != nil {
-			t.Fatal("Error parsing expires_in value into int", err)
+		exp := frag.Get("expires_in")
+		if exp != "" {
+			if _, err := strconv.ParseInt(exp, 10, 64); err != nil {
+				t.Fatal("Error parsing expires_in value into int", err)
+			}
 		}
 		if state := frag.Get("state"); state != "implicit_grant_test" {
 			t.Fatal("Request fragment contained bad state", state)
@@ -245,11 +248,10 @@ func DoTestAuthCodeGrant(t *testing.T, checkApi ApiCheck) (token string) {
 	}
 
 	expiry_str, ok := ret["expires_in"]
-	if !ok {
-		t.Fatal("Expires Time not included in response", body)
-	}
-	if _, err := strconv.ParseInt(expiry_str, 10, 64); err != nil {
-		t.Fatal("Expires Time could not be parsed into an int", err)
+	if ok {
+		if _, err := strconv.ParseInt(expiry_str, 10, 64); err != nil {
+			t.Fatal("Expires Time could not be parsed into an int", err)
+		}
 	}
 
 	// Test using the access token
