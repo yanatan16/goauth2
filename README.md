@@ -7,6 +7,8 @@ The OAuth 2.0 Server User-Agent (Implicit Grant) flow is the first implemented p
 
 [OAuth 2.0 specification](http://oauth.net/2/).
 
+_NOTE_: This code is no longer updated, and was stopped short of being finished. Feel free to extend and finish.
+
 License
 =======
 Modified BSD License
